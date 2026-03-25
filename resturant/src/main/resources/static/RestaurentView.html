@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlavorFlow | Restaurant Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-hero { background: linear-gradient(135deg, #ff6b35 0%, #f7931e 50%, #ffcd3c 100%); }
+        .card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+        .toast { animation: slideIn 0.3s ease, fadeOut 0.5s ease 2.5s forwards; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; pointer-events: none; } }
+        .modal-backdrop { backdrop-filter: blur(4px); }
+        .star-bg { background: linear-gradient(135deg, #fff7ed, #fff); }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen" style="font-family:'Inter',sans-serif">
+
+<!-- Toast Notification -->
+<div id="toast" class="hidden fixed top-5 right-5 z-50 flex items-center gap-3 px-5 py-4 rounded-xl shadow-xl text-white toast" role="alert">
+    <i id="toastIcon" class="text-lg"></i>
+    <span id="toastMsg" class="font-medium text-sm"></span>
+</div>
+
+<!-- Hero Header -->
+<div class="gradient-hero text-white shadow-lg">
+    <div class="container mx-auto px-6 py-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+            <h1 class="text-3xl font-bold flex items-center gap-2">
+                <i class="fa-solid fa-utensils"></i> FlavorFlow
+            </h1>
+            <p class="text-orange-100 text-sm mt-1">Restaurant Management Dashboard</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="loadRestaurants()" title="Refresh" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition flex items-center gap-2 text-sm font-medium">
+                <i class="fa-solid fa-rotate"></i> Refresh
+            </button>
+            <button onclick="openAddModal()" class="bg-white text-orange-500 hover:bg-orange-50 px-5 py-2 rounded-lg font-semibold shadow-md transition flex items-center gap-2 text-sm">
+                <i class="fa-solid fa-plus"></i> Add Restaurant
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Bar -->
+<div class="container mx-auto px-6 py-6">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 card-hover flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
+                <i class="fa-solid fa-store text-orange-500 text-xl"></i>
+            </div>
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold tracking-wide">Total Restaurants</p>
+                <p id="statTotal" class="text-2xl font-bold text-gray-800">0</p>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 card-hover flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                <i class="fa-solid fa-star text-yellow-500 text-xl"></i>
+            </div>
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold tracking-wide">Average Rating</p>
+                <p id="statAvg" class="text-2xl font-bold text-gray-800">—</p>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 card-hover flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                <i class="fa-solid fa-fire text-green-500 text-xl"></i>
+            </div>
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold tracking-wide">Top Rated</p>
+                <p id="statTop" class="text-sm font-bold text-gray-800 truncate max-w-[140px]">—</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search + Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div>
+                <h2 class="text-lg font-bold text-gray-800">Restaurant Directory</h2>
+                <p class="text-xs text-gray-400 mt-0.5">All registered restaurants</p>
+            </div>
+            <div class="relative w-full sm:w-64">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                <input id="searchInput" oninput="filterTable()" type="text" placeholder="Search name or cuisine…"
+                    class="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                        <th class="px-6 py-3 font-semibold">ID</th>
+                        <th class="px-6 py-3 font-semibold">Name</th>
+                        <th class="px-6 py-3 font-semibold">Location</th>
+                        <th class="px-6 py-3 font-semibold">Cuisine</th>
+                        <th class="px-6 py-3 font-semibold text-center">Rating</th>
+                        <th class="px-6 py-3 font-semibold text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="restaurantTableBody" class="divide-y divide-gray-100 text-gray-700 text-sm">
+                    <tr id="emptyRow">
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-400">
+                            <i class="fa-solid fa-plate-wheat text-3xl mb-2 block text-gray-200"></i>
+                            No restaurants found. Add one to get started!
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div id="modal" class="hidden fixed inset-0 z-40 bg-black bg-opacity-40 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div class="gradient-hero text-white p-6 rounded-t-2xl">
+            <h3 id="modalTitle" class="text-xl font-bold flex items-center gap-2">
+                <i class="fa-solid fa-plus-circle"></i> Add New Restaurant
+            </h3>
+            <p class="text-orange-100 text-sm mt-1">Fill in the details below</p>
+        </div>
+        <form id="resForm" class="p-6 space-y-4">
+            <input type="hidden" id="editId">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Restaurant Name</label>
+                    <input type="text" id="name" placeholder="e.g. The Golden Spoon"
+                        class="w-full p-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Location</label>
+                    <input type="text" id="location" placeholder="e.g. Colombo, Sri Lanka"
+                        class="w-full p-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Cuisine Type</label>
+                    <input type="text" id="cuisine" placeholder="e.g. Italian, Sri Lankan"
+                        class="w-full p-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Rating (0 – 5)</label>
+                    <input type="number" id="rating" step="0.1" min="0" max="5" placeholder="e.g. 4.5"
+                        class="w-full p-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" required>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="closeModal()" class="px-5 py-2 text-sm text-gray-500 hover:text-gray-700 font-medium transition">Cancel</button>
+                <button type="submit" id="submitBtn" class="gradient-hero text-white px-6 py-2 rounded-lg text-sm font-semibold shadow-md hover:opacity-90 transition">
+                    Save Restaurant
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-40 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+        <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fa-solid fa-trash-can text-red-500 text-2xl"></i>
+        </div>
+        <h3 class="text-lg font-bold text-gray-800 mb-2">Delete Restaurant?</h3>
+        <p class="text-sm text-gray-500 mb-6">This action cannot be undone. The restaurant will be permanently removed.</p>
+        <div class="flex gap-3 justify-center">
+            <button onclick="closeDeleteModal()" class="px-5 py-2 rounded-lg text-sm font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 transition">Cancel</button>
+            <button id="confirmDeleteBtn" class="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition">Yes, Delete</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let allRestaurants = [];
+    let deleteTargetId = null;
+
+    // ── Utilities ──────────────────────────────────────────────
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        const icon  = document.getElementById('toastIcon');
+        const msg   = document.getElementById('toastMsg');
+        toast.className = toast.className.replace(/bg-\S+/g, '');
+        if (type === 'success') {
+            toast.classList.add('bg-green-500');
+            icon.className = 'fa-solid fa-circle-check text-lg';
+        } else {
+            toast.classList.add('bg-red-500');
+            icon.className = 'fa-solid fa-circle-xmark text-lg';
+        }
+        msg.textContent = message;
+        toast.classList.remove('hidden');
+        toast.style.animation = 'none';
+        void toast.offsetWidth;
+        toast.style.animation = '';
+        toast.classList.add('toast');
+        setTimeout(() => toast.classList.add('hidden'), 3200);
+    }
+
+    function starsHtml(rating) {
+        const r = parseFloat(rating) || 0;
+        const full  = Math.floor(r);
+        const half  = (r - full) >= 0.5 ? 1 : 0;
+        const empty = 5 - full - half;
+        return '<i class="fa-solid fa-star text-orange-400 text-xs"></i>'.repeat(full)
+             + '<i class="fa-solid fa-star-half-stroke text-orange-400 text-xs"></i>'.repeat(half)
+             + '<i class="fa-regular fa-star text-gray-300 text-xs"></i>'.repeat(empty);
+    }
+
+    function updateStats(data) {
+        document.getElementById('statTotal').textContent = data.length;
+        if (data.length === 0) {
+            document.getElementById('statAvg').textContent = '—';
+            document.getElementById('statTop').textContent = '—';
+            return;
+        }
+        const avg = (data.reduce((s, r) => s + (r.rating || 0), 0) / data.length).toFixed(1);
+        document.getElementById('statAvg').textContent = avg + ' ★';
+        const top = data.reduce((best, r) => (r.rating > best.rating ? r : best), data[0]);
+        document.getElementById('statTop').textContent = top.name;
+    }
+
+    // ── Render ─────────────────────────────────────────────────
+    function renderTable(data) {
+        const tbody = document.getElementById('restaurantTableBody');
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr id="emptyRow"><td colspan="6" class="px-6 py-12 text-center text-gray-400">
+                <i class="fa-solid fa-plate-wheat text-3xl mb-2 block text-gray-200"></i>
+                No restaurants found. Add one to get started!</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = data.map(res => `
+            <tr class="hover:bg-orange-50 transition-colors group">
+                <td class="px-6 py-4 font-mono text-xs text-gray-400">#${res.id}</td>
+                <td class="px-6 py-4 font-semibold text-gray-800">${res.name}</td>
+                <td class="px-6 py-4 text-gray-500"><i class="fa-solid fa-location-dot text-orange-300 mr-1"></i>${res.location}</td>
+                <td class="px-6 py-4">
+                    <span class="bg-orange-50 text-orange-600 border border-orange-200 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide">
+                        ${res.cuisine}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-center">
+                    <div class="flex flex-col items-center gap-0.5">
+                        <span class="text-orange-500 font-bold text-sm">${res.rating}</span>
+                        <div>${starsHtml(res.rating)}</div>
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-center">
+                    <div class="flex items-center justify-center gap-2 opacity-70 group-hover:opacity-100 transition-opacity">
+                        <button onclick="openEditModal(${res.id})"
+                            class="p-2 rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-100 transition" title="Edit">
+                            <i class="fa-solid fa-pen text-xs"></i>
+                        </button>
+                        <button onclick="openDeleteModal(${res.id})"
+                            class="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition" title="Delete">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`).join('');
+    }
+
+    // ── Load ───────────────────────────────────────────────────
+    async function loadRestaurants() {
+        try {
+            const res = await fetch('/api/resturant/get-all-resturants');
+            if (!res.ok) throw new Error('Failed to load');
+            allRestaurants = await res.json();
+            renderTable(allRestaurants);
+            updateStats(allRestaurants);
+            document.getElementById('searchInput').value = '';
+        } catch (e) {
+            showToast('Could not load restaurants. Is the server running?', 'error');
+        }
+    }
+
+    // ── Search / Filter ────────────────────────────────────────
+    function filterTable() {
+        const q = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = allRestaurants.filter(r =>
+            r.name.toLowerCase().includes(q) || r.cuisine.toLowerCase().includes(q)
+        );
+        renderTable(filtered);
+    }
+
+    // ── Add Modal ──────────────────────────────────────────────
+    function openAddModal() {
+        document.getElementById('editId').value = '';
+        document.getElementById('resForm').reset();
+        document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-plus-circle"></i> Add New Restaurant';
+        document.getElementById('submitBtn').textContent = 'Save Restaurant';
+        document.getElementById('modal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+        document.getElementById('modal').classList.add('hidden');
+    }
+
+    // ── Edit Modal ─────────────────────────────────────────────
+    function openEditModal(id) {
+        const res = allRestaurants.find(r => r.id === id);
+        if (!res) return;
+        document.getElementById('editId').value    = res.id;
+        document.getElementById('name').value      = res.name;
+        document.getElementById('location').value  = res.location;
+        document.getElementById('cuisine').value   = res.cuisine;
+        document.getElementById('rating').value    = res.rating;
+        document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Edit Restaurant';
+        document.getElementById('submitBtn').textContent = 'Update Restaurant';
+        document.getElementById('modal').classList.remove('hidden');
+    }
+
+    // ── Form Submit (Add or Edit) ──────────────────────────────
+    document.getElementById('resForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('editId').value;
+        const body = {
+            name:     document.getElementById('name').value.trim(),
+            location: document.getElementById('location').value.trim(),
+            cuisine:  document.getElementById('cuisine').value.trim(),
+            rating:   parseFloat(document.getElementById('rating').value)
+        };
+
+        try {
+            let res;
+            if (id) {
+                res = await fetch(`/api/resturant/update-resturant/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+            } else {
+                res = await fetch('/api/resturant/add-resturant', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+            }
+            if (!res.ok) throw new Error();
+            closeModal();
+            await loadRestaurants();
+            showToast(id ? 'Restaurant updated successfully!' : 'Restaurant added successfully!');
+        } catch {
+            showToast('Failed to save restaurant. Please try again.', 'error');
+        }
+    });
+
+    // ── Delete ─────────────────────────────────────────────────
+    function openDeleteModal(id) {
+        deleteTargetId = id;
+        document.getElementById('deleteModal').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+        deleteTargetId = null;
+        document.getElementById('deleteModal').classList.add('hidden');
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+        if (!deleteTargetId) return;
+        try {
+            const res = await fetch(`/api/resturant/delete-resturant/${deleteTargetId}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error();
+            closeDeleteModal();
+            await loadRestaurants();
+            showToast('Restaurant deleted successfully.');
+        } catch {
+            showToast('Failed to delete restaurant.', 'error');
+        }
+    });
+
+    // Close modals on backdrop click
+    document.getElementById('modal').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('modal')) closeModal();
+    });
+    document.getElementById('deleteModal').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('deleteModal')) closeDeleteModal();
+    });
+
+    window.onload = loadRestaurants;
+</script>
+</body>
+</html>
