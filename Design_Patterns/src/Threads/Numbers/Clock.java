@@ -3,7 +3,7 @@ package Threads.Numbers;
 public class Clock extends Thread{
     private String name;
 
-    public Clock(String name) {
+    public Clock() {
         this.name = name;
     }
 
