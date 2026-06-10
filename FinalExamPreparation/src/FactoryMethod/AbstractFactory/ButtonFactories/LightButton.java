@@ -1,0 +1,8 @@
+package FactoryMethod.AbstractFactory.ButtonFactories;
+
+public class LightButton implements Button{
+    @Override
+    public void click() {
+        System.out.println("Light Button Clicked");
+    }
+}
